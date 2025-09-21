@@ -18,6 +18,7 @@ import { RefreshTokenGuard } from "../common/guards";
 import { ApiOkResponse, ApiOperation } from "@nestjs/swagger";
 import { UserService } from "../user/user.service";
 import { AuthGuard } from "../common/guards/jwt-auth.guard";
+import { VerifyOtpDto } from "../user/dto/verify-otp.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -37,6 +38,16 @@ export class AuthController {
   @ApiOkResponse({ description: "Returns the current user info" })
   getMe(@GetCurrentUserId() userId: number) {
     return this.userService.findOne(userId);
+  }
+
+  @Post("verify-otp")
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp);
+  }
+
+  @Post("resend-otp")
+  resendOTP(@Body("email") email: string) {
+    return this.authService.resendOTP(email);
   }
 
   @Post("user/signin")

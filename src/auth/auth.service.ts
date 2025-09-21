@@ -14,6 +14,42 @@ import * as bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import { SignInUserDto } from "../user/dto/signin-user.dto";
 import { Response } from "express";
+import * as nodemailer from "nodemailer";
+
+async function sendOTP(email: string, otp: string) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.smtp_host,
+    port: +process.env.smtp_port!,
+    secure: false,
+    auth: {
+      user: process.env.smtp_user,
+      pass: process.env.smtp_password,
+    },
+  });
+  await transporter.sendMail({
+    from: `"Simple Backend Project" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: "🔑 Your OTP Code",
+    text: `Your OTP code is: ${otp}. It expires in 2 minutes.`, // fallback for plain-text clients
+    html: `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; background: #fafafa;">
+      <h2 style="color: #333; text-align: center;">Email Verification</h2>
+      <p style="font-size: 16px; color: #555;">Hello 👋,</p>
+      <p style="font-size: 16px; color: #555;">
+        Please use the following one-time password (OTP) to verify your account:
+      </p>
+      <h1 style="text-align: center; color: #2d89ef; letter-spacing: 5px;">${otp}</h1>
+      <p style="font-size: 14px; color: #999; text-align: center;">
+        This code will expire in <strong>2 minutes</strong>.
+      </p>
+      <hr style="margin: 20px 0;">
+      <p style="font-size: 12px; color: #aaa; text-align: center;">
+        If you didn’t request this, you can safely ignore this email.
+      </p>
+    </div>
+  `,
+  });
+}
 
 @Injectable()
 export class AuthService {
@@ -93,6 +129,9 @@ export class AuthService {
 
     const activation_link = uuidv4();
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 2 * 60 * 1000);
+
     const newUser = await this.prismaService.user.create({
       data: {
         full_name,
@@ -102,20 +141,54 @@ export class AuthService {
         password: hashedPassword,
         confirm_password: hashedPassword,
         activation_link: activation_link,
+        otp,
+        otp_expires: otpExpires,
       },
     });
 
-    // try {
-    //   await this.mailService.sendUserActivationLink(newUser);
-    // } catch (error) {
-    //   winstonLogger.warn(error);
-    //   throw new ServiceUnavailableException("Email error occurred");
-    // }
+    await sendOTP(email, otp);
 
     return {
       message: "Ro'yhatdan o'tdingiz. Email orqali akkauntni faollashtiring.",
       userId: newUser.id,
     };
+  }
+
+  async verifyOtp(email: string, otp: string) {
+    const user = await this.prismaService.user.findUnique({ where: { email } });
+
+    if (!user) throw new NotFoundException("User not found");
+    if (user.is_active) throw new ConflictException("Account already active");
+
+    if (
+      user.otp !== otp ||
+      (user.otp_expires && user.otp_expires < new Date())
+    ) {
+      throw new BadRequestException("OTP is invalid or expired");
+    }
+
+    await this.prismaService.user.update({
+      where: { email },
+      data: { is_active: true, otp: null, otp_expires: null },
+    });
+
+    return { message: "Account verified successfully!" };
+  }
+
+  async resendOTP(email: string) {
+    const user = await this.prismaService.user.findUnique({ where: { email } });
+    if (!user) throw new NotFoundException("User not found");
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 2 * 60 * 1000); // 2 mins again
+
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: { otp: otp, otp_expires: otpExpires },
+    });
+
+    await sendOTP(email, otp);
+    return { message: "New OTP sent" };
   }
 
   async signin(

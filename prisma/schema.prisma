@@ -26,6 +26,8 @@ model User {
   hashedRefreshToken String?
   is_active          Boolean?  @default(false)
   activation_link    String?
+   otp           String?   // <-- OTP code
+  otp_expires   DateTime? // <-- OTP expiry date
 
   products Product[]
 
