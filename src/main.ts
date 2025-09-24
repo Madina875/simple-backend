@@ -1,22 +1,24 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ConsoleLogger } from "@nestjs/common";
-import chalk from "chalk";
 import * as cookieParser from "cookie-parser";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { ExpressAdapter } from "@nestjs/platform-express";
+import * as express from "express";
+
+const server = express();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     logger: new ConsoleLogger({
       colors: true,
       prefix: "simple_backend",
     }),
   });
-  const PORT = process.env.PORT;
 
   const config = new DocumentBuilder()
     .setTitle("simple-backend-api")
-    .setDescription(`welcome!`)
+    .setDescription("welcome!")
     .setVersion("1.0.0")
     .addBearerAuth(
       {
@@ -31,15 +33,14 @@ async function bootstrap() {
     .build();
 
   app.use(cookieParser());
+
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("/docs", app, documentFactory);
 
-  await app.listen(PORT ?? 3030, () => {
-    console.log(`
-    ${chalk.magentaBright.magentaBright("✨ Fitness System Online! ")}
-    🔗 URL: ${chalk.cyan.underline(`http://localhost:${PORT}`)}
-    🕓 Time: ${chalk.gray(new Date().toLocaleTimeString())}
-    `);
-  });
+  await app.init(); // ✅ IMPORTANT for Vercel (no listen!)
 }
+
 bootstrap();
+
+// ✅ Export server for Vercel
+export default server;
