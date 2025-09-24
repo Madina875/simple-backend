@@ -1,10 +1,9 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ConsoleLogger } from "@nestjs/common";
+import chalk from "chalk";
 import * as cookieParser from "cookie-parser";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-
-let cachedServer: any; // 👈 Express handler, not http.Server
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -14,9 +13,11 @@ async function bootstrap() {
     }),
   });
 
+  const PORT = process.env.PORT;
+
   const config = new DocumentBuilder()
     .setTitle("simple-backend-api")
-    .setDescription("welcome!")
+    .setDescription("welcome!") // ✅ fixed string
     .setVersion("1.0.0")
     .addBearerAuth(
       {
@@ -35,14 +36,13 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("/docs", app, documentFactory);
 
-  await app.init();
-  return app.getHttpAdapter().getInstance(); // Express app (req, res) => ...
+  await app.listen(PORT ?? 4000, () => {
+    console.log(`
+    ${chalk.magentaBright("✨ Fitness System Online! ")}
+    🔗 URL: ${chalk.cyan.underline(`http://localhost:${PORT ?? 3030}`)}
+    🕓 Time: ${chalk.gray(new Date().toLocaleTimeString())}
+    `);
+  });
 }
 
-// ⚡ Vercel entry
-export default async function handler(req: any, res: any) {
-  if (!cachedServer) {
-    cachedServer = await bootstrap();
-  }
-  return cachedServer(req, res);
-}
+bootstrap();
