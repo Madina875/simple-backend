@@ -1,9 +1,10 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ConsoleLogger } from "@nestjs/common";
-import chalk from "chalk";
 import * as cookieParser from "cookie-parser";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+
+let cachedServer: any; // 👈 Express handler, not http.Server
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,8 +13,6 @@ async function bootstrap() {
       prefix: "simple_backend",
     }),
   });
-
-  const PORT = process.env.PORT;
 
   const config = new DocumentBuilder()
     .setTitle("simple-backend-api")
@@ -36,13 +35,14 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("/docs", app, documentFactory);
 
-  await app.listen(PORT ?? 3030, () => {
-    console.log(`
-    ${chalk.magentaBright("✨ Fitness System Online! ")}
-    🔗 URL: ${chalk.cyan.underline(`http://localhost:${PORT ?? 3030}`)}
-    🕓 Time: ${chalk.gray(new Date().toLocaleTimeString())}
-    `);
-  });
+  await app.init();
+  return app.getHttpAdapter().getInstance(); // Express app (req, res) => ...
 }
 
-bootstrap();
+// ⚡ Vercel entry
+export default async function handler(req: any, res: any) {
+  if (!cachedServer) {
+    cachedServer = await bootstrap();
+  }
+  return cachedServer(req, res);
+}
