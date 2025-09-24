@@ -1,20 +1,19 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ConsoleLogger } from "@nestjs/common";
+import chalk from "chalk";
 import * as cookieParser from "cookie-parser";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { ExpressAdapter } from "@nestjs/platform-express";
-import * as express from "express";
-
-const server = express();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+  const app = await NestFactory.create(AppModule, {
     logger: new ConsoleLogger({
       colors: true,
       prefix: "simple_backend",
     }),
   });
+
+  const PORT = process.env.PORT;
 
   const config = new DocumentBuilder()
     .setTitle("simple-backend-api")
@@ -37,10 +36,13 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("/docs", app, documentFactory);
 
-  await app.init(); // ✅ IMPORTANT for Vercel (no listen!)
+  await app.listen(PORT ?? 3030, () => {
+    console.log(`
+    ${chalk.magentaBright("✨ Fitness System Online! ")}
+    🔗 URL: ${chalk.cyan.underline(`http://localhost:${PORT ?? 3030}`)}
+    🕓 Time: ${chalk.gray(new Date().toLocaleTimeString())}
+    `);
+  });
 }
 
 bootstrap();
-
-// ✅ Export server for Vercel
-export default server;

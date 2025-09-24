@@ -14,7 +14,7 @@ export class AppController {
         <body style="font-family: Arial; text-align: center; margin-top: 50px;">
           <h1>🚀 Welcome to My API</h1>
           <p>This is the backend main page.</p>
-          <a href="/api-docs">Swagger Documentation</a>
+          <a href="/docs">Swagger Documentation</a>
         </body>
       </html>
     `);
