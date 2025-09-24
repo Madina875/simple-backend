@@ -32,7 +32,7 @@ async function bootstrap() {
 
   app.use(cookieParser());
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("/docs", app, documentFactory);
+  SwaggerModule.setup("/", app, documentFactory);
 
   await app.listen(PORT ?? 3030, () => {
     console.log(`
